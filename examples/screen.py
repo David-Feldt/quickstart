@@ -7,14 +7,17 @@ class HDMIDisplay:
         # Initialize Pygame
         pygame.init()
         
-        # Set up the display (5-inch HDMI LCD typically runs at 800x480)
-        self.width = 800
-        self.height = 480
-        self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("5-inch HDMI LCD Display")
+        # Get the current screen info
+        screen_info = pygame.display.Info()
+        self.width = screen_info.current_w
+        self.height = screen_info.current_h
         
-        # Set up fonts
-        self.font = pygame.font.Font(None, 48)  # None uses default system font
+        # Set up the display in full screen mode
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+        pygame.display.set_caption("Full Screen Display")
+        
+        # Set up fonts - make it bigger for full screen
+        self.font = pygame.font.Font(None, 72)  # Increased font size
         
         # Set up colors
         self.BLACK = (0, 0, 0)
@@ -68,8 +71,10 @@ class HDMIDisplay:
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
+                    if event.key == pygame.K_ESCAPE:  # ESC to quit
                         running = False
+                    elif event.key == pygame.K_f:     # F to toggle fullscreen
+                        pygame.display.toggle_fullscreen()
             
             # Update display
             self.update_display()
