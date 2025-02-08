@@ -17,15 +17,9 @@ dotenv.load_dotenv()
 
 # Initialize OpenAI API
 openai.api_key = os.getenv('OPENAI_API_KEY')
-if not openai.api_key:
-    raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in .env file")
 
 # Initialize ElevenLabs
-client = ElevenLabs(
-    api_key=os.getenv('ELEVEN_LABS_API_KEY')
-)
-if not client.api_key:
-    raise ValueError("No ElevenLabs API key found. Please set ELEVEN_LABS_API_KEY in .env file")
+client = ElevenLabs(api_key=os.getenv('ELEVEN_LABS_API_KEY'))
 
 # Set up audio device
 device_name = "UACDemoV1.0"
