@@ -278,14 +278,11 @@ def drive_away(final_order):
 def start_driving(robot):
     # robot = RobotController()
     robot.drive_distance(1.0)
-    time.sleep(5)
-    robot.cleanup()
 
 def end_driving(robot):
     # robot = RobotController()
     robot.turn_degrees(180)
     robot.drive_distance(1.0)
-    robot.cleanup()
 
 
     # time.sleep(5)
@@ -305,7 +302,7 @@ class HDMIDisplay:
         pygame.display.set_caption("Full Screen Display")
         
         # Adjust font size for smaller screen
-        self.font = pygame.font.Font(None, 52)  # Made font smaller for 800x480
+        self.font = pygame.font.Font(None, 72)  # Made font smaller for 800x480
         
         # Set up colors
         self.BLACK = (0, 0, 0)
@@ -400,8 +397,8 @@ class HDMIDisplay:
 
 # Main function to run the voice assistant
 def main():
-    # start_driving()
-    # Initialize the Pi5Neo class with 10 LEDs and an SPI speed of 800kHz
+    # Set volume to maximum (100)
+    set_alsa_volume(100)  # Changed from default 80 to 100
     
     neo = Pi5Neo('/dev/spidev0.0', 15, 800)
 
@@ -413,10 +410,11 @@ def main():
 
     display = HDMIDisplay()
     display.display_text("My Name is Sam Altman")
-    # start_driving(robot)
+    start_driving(robot)
+    # """
+    # text_to_speech("Hello, welcome to Lazeez Shawarma, how can I help you today?")
+    text_to_speech("Openai layed me off, were going brankrupt because of deepseek so I have to work at Lazeez Shawarma, how can I help you today?")
 
-    # time.sleep(5)
-    text_to_speech("Hello, welcome to Lazeez Shawarma, how can I help you today?")
     while True:
         text = capture_and_transcribe()
         if text:
@@ -430,10 +428,11 @@ def main():
                 display.display_text(final_order)
 
                 text_to_speech("Ok, I'll get that ready for you")
-                # end_driving(robot)
+                end_driving(robot)
                 break
             else:
                 print(f"Response: {response}")
                 text_to_speech(response)
+    # """
 if __name__ == "__main__":
     main() 

@@ -7,13 +7,9 @@ import numpy as np
 from scipy import signal
 import dotenv
 
-# Load environment variables
 dotenv.load_dotenv()
 
-# Get API key from environment
 api_key = os.getenv('ELEVEN_LABS_API_KEY')
-if not api_key:
-    raise ValueError("No ElevenLabs API key found. Please set ELEVEN_LABS_API_KEY in .env file")
 
 client = ElevenLabs(
     api_key=api_key,
