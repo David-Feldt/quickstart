@@ -185,17 +185,16 @@ class HDMIDisplay:
         pygame.display.init()
         pygame.font.init()
         
-        # Get the current screen info
-        screen_info = pygame.display.Info()
-        self.width = screen_info.current_w
-        self.height = screen_info.current_h
+        # Force the display resolution to 800x480
+        self.width = 800
+        self.height = 480
         
-        # Set up the display in full screen mode
+        # Set up the display in fullscreen mode
         self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
         pygame.display.set_caption("Full Screen Display")
         
-        # Set up fonts with smaller size (changed from 72 to 36)
-        self.font = pygame.font.Font(None, 54)  # Decreased font size
+        # Adjust font size for smaller screen
+        self.font = pygame.font.Font(None, 52)  # Made font smaller for 800x480
         
         # Set up colors
         self.BLACK = (0, 0, 0)
@@ -204,7 +203,7 @@ class HDMIDisplay:
         # Display state
         self.display_state = 0
         self.last_update = time.time()
-        self.FPS = 30  # Limit framerate
+        self.FPS = 30
         self.clock = pygame.time.Clock()
         
     def clear_screen(self):
@@ -212,19 +211,60 @@ class HDMIDisplay:
         self.screen.fill(self.BLACK)
         
     def display_text(self, text, secondary_text=None):
-        """Display text on the screen"""
+        """Display text on the screen with word wrapping and left alignment"""
         self.clear_screen()
         
-        # Render main text
-        text_surface = self.font.render(text, True, self.WHITE)
-        text_rect = text_surface.get_rect(center=(self.width/2, self.height/3))
-        self.screen.blit(text_surface, text_rect)
+        def wrap_text(text, font, max_width):
+            words = text.split(' ')
+            lines = []
+            current_line = []
+            current_width = 0
+            
+            for word in words:
+                word_surface = font.render(word + ' ', True, self.WHITE)
+                word_width = word_surface.get_width()
+                
+                if current_width + word_width <= max_width:
+                    current_line.append(word)
+                    current_width += word_width
+                else:
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+                    current_width = word_width
+            
+            lines.append(' '.join(current_line))  # Add the last line
+            return lines
         
-        # Render secondary text if provided
+        # Calculate margins and maximum width
+        margin_x = 50  # Left margin in pixels
+        max_width = 550 # Maximum width for text
+        line_spacing = 40  # Space between lines
+        
+        # Wrap and render main text
+        main_lines = wrap_text(text, self.font, max_width)
+        y_position = self.height/3  # Starting Y position
+        
+        # Render main text lines
+        for line in main_lines:
+            text_surface = self.font.render(line, True, self.WHITE)
+            text_rect = text_surface.get_rect()
+            text_rect.left = margin_x
+            text_rect.top = y_position
+            self.screen.blit(text_surface, text_rect)
+            y_position += line_spacing
+        
+        # Wrap and render secondary text if provided
         if secondary_text:
-            secondary_surface = self.font.render(secondary_text, True, self.WHITE)
-            secondary_rect = secondary_surface.get_rect(center=(self.width/2, 2*self.height/3))
-            self.screen.blit(secondary_surface, secondary_rect)
+            secondary_lines = wrap_text(secondary_text, self.font, max_width)
+            y_position = 2 * self.height/3  # Start secondary text lower
+            
+            for line in secondary_lines:
+                text_surface = self.font.render(line, True, self.WHITE)
+                text_rect = text_surface.get_rect()
+                text_rect.left = margin_x
+                text_rect.top = y_position
+                self.screen.blit(text_surface, text_rect)
+                y_position += line_spacing
         
         pygame.display.flip()
             
@@ -265,16 +305,10 @@ def main():
     robot = RobotController()
 
     display = HDMIDisplay()
-    display.display_text("My Name is Sam Altman and I love Ari's cock")
-
+    display.display_text("My Name is Sam Altman")
     # start_driving(robot)
 
-    # while True:
-    #     text_to_speech("Im fucking gay")
-    #     time.sleep(10)
-    # display.display_text("Ari is gay")
     # time.sleep(5)
-    """
     text_to_speech("Hello, welcome to Lazeez Shawarma, how can I help you today?")
     while True:
         text = capture_and_transcribe()
@@ -294,6 +328,5 @@ def main():
             else:
                 print(f"Response: {response}")
                 text_to_speech(response)
-    """
 if __name__ == "__main__":
     main() 
