@@ -11,6 +11,11 @@ from io import BytesIO
 from scipy import signal
 import dotenv
 import os
+import pygame
+
+from drive_controller import RobotController
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import time
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -61,6 +66,8 @@ def capture_and_transcribe():
 
     print("Listening...")
     try:
+        # Add a small sleep to prevent CPU thrashing
+        time.sleep(0.3)
         for item in transcriber(mic, generate_kwargs={"max_new_tokens": 128}):
             if not item["partial"][0]:
                 text = item["text"].strip()
@@ -140,7 +147,7 @@ def text_to_speech(text):
         # Increase volume
         volume_increase = 10.0
         data = data * volume_increase
-        
+                
         # Play audio
         sd.play(data, samplerate=sample_rate, device=device_id)
         sd.wait()
@@ -153,19 +160,133 @@ def drive_away(final_order):
     print("\nOrder Summary:")
     print(f"{final_order}")
     
+def start_driving(robot):
+    # robot = RobotController()
+    robot.drive_distance(1.0)
+    time.sleep(5)
+    robot.cleanup()
+
+def end_driving(robot):
+    # robot = RobotController()
+    robot.turn_degrees(180)
+    robot.drive_distance(1.0)
+    robot.cleanup()
+
+
+    # time.sleep(5)
+    # robot.cleanup()
+class HDMIDisplay:
+    def __init__(self):
+        # Initialize Pygame
+        pygame.display.init()
+        pygame.font.init()
+        
+        # Get the current screen info
+        screen_info = pygame.display.Info()
+        self.width = screen_info.current_w
+        self.height = screen_info.current_h
+        
+        # Set up the display in full screen mode
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+        pygame.display.set_caption("Full Screen Display")
+        
+        # Set up fonts with smaller size (changed from 72 to 36)
+        self.font = pygame.font.Font(None, 36)  # Decreased font size
+        
+        # Set up colors
+        self.BLACK = (0, 0, 0)
+        self.WHITE = (255, 255, 255)
+        
+        # Display state
+        self.display_state = 0
+        self.last_update = time.time()
+        self.FPS = 30  # Limit framerate
+        self.clock = pygame.time.Clock()
+        
+    def clear_screen(self):
+        """Clear the screen to black"""
+        self.screen.fill(self.BLACK)
+        
+    def display_text(self, text, secondary_text=None):
+        """Display text on the screen"""
+        self.clear_screen()
+        
+        # Render main text
+        text_surface = self.font.render(text, True, self.WHITE)
+        text_rect = text_surface.get_rect(center=(self.width/2, self.height/3))
+        self.screen.blit(text_surface, text_rect)
+        
+        # Render secondary text if provided
+        if secondary_text:
+            secondary_surface = self.font.render(secondary_text, True, self.WHITE)
+            secondary_rect = secondary_surface.get_rect(center=(self.width/2, 2*self.height/3))
+            self.screen.blit(secondary_surface, secondary_rect)
+        
+        pygame.display.flip()
+            
+    def update_display(self):
+        """Update the display based on state"""
+        current_time = time.time()
+        
+        # Update every 2 seconds
+        if current_time - self.last_update >= 2:
+            if self.display_state == 0:
+                self.display_text("Ari has a huge cock!")
+                self.display_state = 1
+            else:
+                self.display_text("And Sam Altman wants it", "Ari has a huge cock!")
+                self.display_state = 0
+            self.last_update = current_time
+
+    def run(self):
+        """Main loop"""
+        running = True
+        while running:
+            self.clock.tick(self.FPS)  # Limit to 30 FPS
+            
+            # Handle events
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                    elif event.key == pygame.K_f:
+                        pygame.display.toggle_fullscreen()
+            
+            # Update display
+            self.update_display()
+
 # Main function to run the voice assistant
 def main():
+    # start_driving()
+    robot = RobotController()
+
+    display = HDMIDisplay()
+    display.display_text("My Name is Sam Altman")
+
+    start_driving(robot)
+
+    # while True:
+    #     text_to_speech("Im fucking gay")
+    #     time.sleep(10)
+    # display.display_text("Ari is gay")
+    # time.sleep(5)
     text_to_speech("Hello, welcome to Lazeez Shawarma, how can I help you today?")
     while True:
         text = capture_and_transcribe()
         if text:
+            display.display_text(text)
+
             response = get_openai_response(text)
-            
+            display.display_text("...")
             # Check if the order is recorded
             if "recorded_order" in response.lower():
                 final_order = response.split("recorded_order:")[1].strip()
+                display.display_text(final_order)
+
                 text_to_speech("Ok, I'll get that ready for you")
-                drive_away(final_order)
+                end_driving(robot)
                 break
             else:
                 print(f"Response: {response}")
