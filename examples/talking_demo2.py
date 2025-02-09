@@ -50,7 +50,7 @@ conversation_history = [
 # Add these constants at the top of the file
 CHUNK_DURATION = 0.1
 MAX_LEDS = 15
-LED_COLOR = (0, 0, 128)
+LED_COLOR = (130, 0, 255)
 DEVICE_NAME = "UACDemoV1.0"
 LED_DEVICE_PATH = "/dev/spidev0.0"
 LED_BAUDRATE = 800
@@ -405,12 +405,8 @@ def main():
     
     neo = Pi5Neo('/dev/spidev0.0', 15, 800)
 
-    # Fill the strip with a red color
-    neo.fill_strip(255, 0, 0)
-    neo.update_strip()  # Commit changes to the LEDs
-
-    # Set the 5th LED to blue
-    neo.set_led_color(4, 0, 0, 255)
+    # Set the 5th LED to lilac
+    neo.set_led_color(4, 130, 0, 255)  # Same lilac color
     neo.update_strip()
     
     robot = RobotController()
