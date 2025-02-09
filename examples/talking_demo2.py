@@ -1,7 +1,6 @@
 import pyaudio
 import wave
 import openai
-from transformers import pipeline
 from transformers.pipelines.audio_utils import ffmpeg_microphone_live
 import sys
 from elevenlabs.client import ElevenLabs
@@ -13,6 +12,9 @@ import dotenv
 import os
 import pygame
 from pi5neo import Pi5Neo
+from scipy.io import wavfile
+import numpy as np
+from openai import OpenAI
 
 from drive_controller import RobotController
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -27,6 +29,10 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 # Initialize ElevenLabs
 client = ElevenLabs(api_key=os.getenv('ELEVEN_LABS_API_KEY'))
 
+# Initialize clients with different names
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+elevenlabs_client = ElevenLabs(api_key=os.getenv('ELEVEN_LABS_API_KEY'))
+
 # Set up audio device
 device_name = "UACDemoV1.0"
 device_info = sd.query_devices(device_name, 'output')
@@ -38,44 +44,40 @@ conversation_history = [
     {"role": "system", "content": "You Are the Ultimate Lazeez Waiter, Keeper of the Waterloo Lore..."},
 ]
 
-# Initialize the Whisper model
-try:
-    model = "openai/whisper-tiny.en"
-    transcriber = pipeline(
-        "automatic-speech-recognition",
-        model=model,
-        device='cpu',
-        model_kwargs={"local_files_only": False}
-    )
-except Exception as e:
-    print(f"Error loading model: {e}")
-    print("Make sure you have an internet connection and the required packages installed:")
-    print("pip install transformers torch")
-    sys.exit(1)
-
-# Function to capture audio and transcribe using Whisper
+# Function to capture audio and transcribe using OpenAI Whisper
 def capture_and_transcribe():
-    sampling_rate = transcriber.feature_extractor.sampling_rate
-    chunk_length_s = 5.0
-    stream_chunk_s = 2.0
-
-    mic = ffmpeg_microphone_live(
-        sampling_rate=sampling_rate,
-        chunk_length_s=chunk_length_s,
-        stream_chunk_s=stream_chunk_s,
-    )
-
+    """Record and transcribe audio using OpenAI Whisper"""
+    RATE = 44100
+    CHANNELS = 1
+    CHUNK_DURATION = 5  # Record for 5 seconds
+    
     print("Listening...")
     try:
-        # Add a small sleep to prevent CPU thrashing
-        time.sleep(0.3)
-        for item in transcriber(mic, generate_kwargs={"max_new_tokens": 128}):
-            if not item["partial"][0]:
-                text = item["text"].strip()
-                print(f"You said: {text}")
-                return text
+        # Record audio
+        recording = sd.rec(
+            int(RATE * CHUNK_DURATION),
+            samplerate=RATE,
+            channels=CHANNELS,
+            dtype='float32'
+        )
+        sd.wait()  # Wait until recording is finished
+        
+        # Save as WAV file
+        temp_path = "temp_recording.wav"
+        wavfile.write(temp_path, RATE, (recording * 32767).astype(np.int16))
+        
+        # Use OpenAI client for transcription
+        with open(temp_path, "rb") as audio_file:
+            transcription = openai_client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+            text = transcription.text.strip()
+            print(f"You said: {text}")
+            return text
+            
     except Exception as e:
-        print(f"Error during transcription: {e}")
+        print(f"Error during recording: {str(e)}")
         return None
 
 # Function to get a response from OpenAI with a custom system prompt
@@ -114,13 +116,14 @@ def get_openai_response(prompt):
         }
     ] + conversation_history
     
-    response = openai.ChatCompletion.create(
+    # Use OpenAI client
+    response = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=messages
     )
     
-    # Add assistant's response to conversation history
-    assistant_response = response.choices[0].message.content.strip()
+    # Get response using new format
+    assistant_response = response.choices[0].message.content
     conversation_history.append({"role": "assistant", "content": assistant_response})
     
     return assistant_response
@@ -128,8 +131,8 @@ def get_openai_response(prompt):
 # Function to convert text to speech using ElevenLabs
 def text_to_speech(text):
     try:
-        # Generate audio
-        audio = client.generate(
+        # Generate audio using ElevenLabs client
+        audio = elevenlabs_client.generate(
             text=text,
             voice="BXYepLXgEDL2bTMkcar4",  # Raphael voice
             model="eleven_multilingual_v2"
@@ -225,20 +228,6 @@ class HDMIDisplay:
         
         pygame.display.flip()
             
-    def update_display(self):
-        """Update the display based on state"""
-        current_time = time.time()
-        
-        # Update every 2 seconds
-        if current_time - self.last_update >= 2:
-            if self.display_state == 0:
-                self.display_text("Ari has a huge cock!")
-                self.display_state = 1
-            else:
-                self.display_text("And Sam Altman wants it", "Ari has a huge cock!")
-                self.display_state = 0
-            self.last_update = current_time
-
     def run(self):
         """Main loop"""
         running = True
@@ -262,7 +251,7 @@ class HDMIDisplay:
 def main():
     # start_driving()
     # Initialize the Pi5Neo class with 10 LEDs and an SPI speed of 800kHz
-    """
+    
     neo = Pi5Neo('/dev/spidev0.0', 15, 800)
 
     # Fill the strip with a red color
@@ -272,20 +261,20 @@ def main():
     # Set the 5th LED to blue
     neo.set_led_color(4, 0, 0, 255)
     neo.update_strip()
-    """
     
     robot = RobotController()
 
     display = HDMIDisplay()
-    display.display_text("My Name is Sam Altman")
+    display.display_text("My Name is Sam Altman and I love Ari's cock")
 
-    start_driving(robot)
+    # start_driving(robot)
 
     # while True:
     #     text_to_speech("Im fucking gay")
     #     time.sleep(10)
     # display.display_text("Ari is gay")
     # time.sleep(5)
+    """
     text_to_speech("Hello, welcome to Lazeez Shawarma, how can I help you today?")
     while True:
         text = capture_and_transcribe()
@@ -300,11 +289,11 @@ def main():
                 display.display_text(final_order)
 
                 text_to_speech("Ok, I'll get that ready for you")
-                end_driving(robot)
+                # end_driving(robot)
                 break
             else:
                 print(f"Response: {response}")
                 text_to_speech(response)
-
+    """
 if __name__ == "__main__":
     main() 
